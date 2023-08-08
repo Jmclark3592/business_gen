@@ -1,6 +1,11 @@
 flake8
 black
 googlemaps
+boto3
 requests
 python-dotenv
 urllib3<2.0
+bs4
+re
+urllib.parse
+csv
