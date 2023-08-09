@@ -13,6 +13,7 @@ import os
 import re
 import urllib.parse
 import boto3
+import csv
 
 
 load_dotenv()
@@ -26,6 +27,23 @@ GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
 
 requests.packages.urllib3.disable_warnings()
+
+
+def save_to_csv(data, filename="output.csv"):
+    """Save data to CSV."""
+    with open(filename, "w", newline="") as csvfile:
+        fieldnames = [
+            "Name",
+            "Address",
+            "Website",
+            "Email",
+            "PageContent",
+        ]  # Based on your SQS message structure
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        writer.writeheader()  # Write the headers to the CSV
+        for row in data:
+            writer.writerow(row)
 
 
 def geocode_location(location):
@@ -148,6 +166,7 @@ def save_to_enriched_queue(data, queue_url):
             enriched_data.append(item)
 
     send_to_sqs(enriched_data, queue_url)
+    return enriched_data  # Return the enriched data for CSV saving
 
 
 def extract_website_content(url):
@@ -217,11 +236,14 @@ def extract_email_from_website(url, depth=1):
 
 def send_to_sqs(data, queue_url):
     sqs = boto3.client("sqs", region_name="us-east-2")  # might be east-1
-    try:
-        response = sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(data))
-        print(f"Message sent with ID: {response['MessageId']}")
-    except Exception as e:
-        print(f"Error sending message to SQS: {e}")
+    for item in data:
+        try:
+            response = sqs.send_message(
+                QueueUrl=queue_url, MessageBody=json.dumps(item)
+            )
+            print(f"Message sent with ID: {response['MessageId']}")
+        except Exception as e:
+            print(f"Error sending message to SQS: {e}")
 
 
 def main():
@@ -236,9 +258,10 @@ def main():
 
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
     save_to_initial_queue(data, QUEUE_URL)
+    enriched_data = save_to_enriched_queue(data, SECOND_QUEUE_URL)
 
-    # Now fetch the enriched data and save to the second queue
-    save_to_enriched_queue(data, SECOND_QUEUE_URL)
+    # Save the enriched data to a CSV
+    save_to_csv(enriched_data)
 
 
 if __name__ == "__main__":
