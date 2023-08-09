@@ -18,6 +18,7 @@ import boto3
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 QUEUE_URL = os.getenv("QUEUE_URL")
+SECOND_QUEUE_URL = os.getenv("SECOND_QUEUE_URL")
 ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
 GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
@@ -115,21 +116,53 @@ def get_place_details(place_id):
 import json  # Add this import to the top of your code
 
 
-def save_to_queue(data, queue_url):
-    output_data = []
+def save_to_initial_queue(data, queue_url):
+    initial_data = []
 
     for place in data:
         item = {
             "Name": place["name"],
-            "Phone Number": place.get("formatted_phone_number", ""),
             "Address": place["formatted_address"],
             "Website": place.get("website", ""),
-            "Email": "",  # Placeholder for email, will be populated later
         }
-        output_data.append(item)
+        initial_data.append(item)
 
-    # Now, send the output data to SQS
-    send_to_sqs(output_data, queue_url)
+    send_to_sqs(initial_data, queue_url)
+
+
+def save_to_enriched_queue(data, queue_url):
+    enriched_data = []
+    for place in data:
+        website_content = extract_website_content(
+            place["Website"]
+        )  # This function will be created next
+        item = {
+            "Name": place["Name"],
+            "Address": place["Address"],
+            "Website": place["Website"],
+            "Email": extract_email_from_website(place["Website"]),
+            "WebsiteContent": website_content,
+        }
+        enriched_data.append(item)
+
+    send_to_sqs(enriched_data, queue_url)
+
+
+def extract_website_content(url):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    }
+
+    if not url or not url.startswith("http"):
+        return ""
+
+    try:
+        response = requests.get(url, headers=headers, verify=False)
+        response.raise_for_status()
+        return response.text
+    except Exception as e:
+        print(f"Error extracting content from {url}: {e}")
+        return ""
 
 
 def extract_email_from_website(url, depth=1):
@@ -180,20 +213,8 @@ def extract_email_from_website(url, depth=1):
         return None
 
 
-def append_emails_to_json(filename, emails):
-    with open(filename, "r") as file:
-        data = json.load(file)
-
-    for item, email in zip(data, emails):
-        if email:  # Check to avoid adding None
-            item["Email"] = email
-
-    with open(filename, "w") as file:
-        json.dump(data, file, indent=4)
-
-
 def send_to_sqs(data, queue_url):
-    sqs = boto3.client("sqs", region_name="us-east-1")
+    sqs = boto3.client("sqs", region_name="us-east-2")  # might be east-1
     try:
         response = sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(data))
         print(f"Message sent with ID: {response['MessageId']}")
@@ -212,12 +233,7 @@ def main():
     min_lng, max_lng = lng - delta, lng + delta
 
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
-    save_to_queue(data, QUEUE_URL)
+    save_to_initial_queue(data, QUEUE_URL)
 
-    websites = [place.get("website", "") for place in data]
-    emails = [extract_email_from_website(url) for url in websites]
-    append_emails_to_json("output.json", emails)
-
-
-if __name__ == "__main__":
-    main()
+    # Now fetch the enriched data and save to the second queue
+    save_to_enriched_queue(data, SECOND_QUEUE_URL)

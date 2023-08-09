@@ -6,6 +6,3 @@ requests
 python-dotenv
 urllib3<2.0
 bs4
-re
-urllib.parse
-json
