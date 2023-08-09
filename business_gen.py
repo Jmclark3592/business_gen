@@ -29,23 +29,6 @@ NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
 requests.packages.urllib3.disable_warnings()
 
 
-def save_to_csv(data, filename="output.csv"):
-    """Save data to CSV."""
-    with open(filename, "w", newline="") as csvfile:
-        fieldnames = [
-            "Name",
-            "Address",
-            "Website",
-            "Email",
-            "PageContent",
-        ]  # Based on your SQS message structure
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-        writer.writeheader()  # Write the headers to the CSV
-        for row in data:
-            writer.writerow(row)
-
-
 def geocode_location(location):
     params = {"address": location, "key": GOOGLE_API_KEY}
     response = requests.get(GEOCODE_ENDPOINT, params=params)
@@ -166,7 +149,6 @@ def save_to_enriched_queue(data, queue_url):
             enriched_data.append(item)
 
     send_to_sqs(enriched_data, queue_url)
-    return enriched_data  # Return the enriched data for CSV saving
 
 
 def extract_website_content(url):
@@ -258,10 +240,9 @@ def main():
 
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
     save_to_initial_queue(data, QUEUE_URL)
-    enriched_data = save_to_enriched_queue(data, SECOND_QUEUE_URL)
 
-    # Save the enriched data to a CSV
-    save_to_csv(enriched_data)
+    # Now fetch the enriched data and save to the second queue
+    save_to_enriched_queue(data, SECOND_QUEUE_URL)
 
 
 if __name__ == "__main__":
