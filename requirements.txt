@@ -8,4 +8,4 @@ urllib3<2.0
 bs4
 re
 urllib.parse
-csv
+json
