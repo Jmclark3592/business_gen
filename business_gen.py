@@ -132,18 +132,20 @@ def save_to_initial_queue(data, queue_url):
 
 def save_to_enriched_queue(data, queue_url):
     enriched_data = []
+
     for place in data:
-        website_content = extract_website_content(
-            place["Website"]
-        )  # This function will be created next
-        item = {
-            "Name": place["Name"],
-            "Address": place["Address"],
-            "Website": place["Website"],
-            "Email": extract_email_from_website(place["Website"]),
-            "WebsiteContent": website_content,
-        }
-        enriched_data.append(item)
+        website = place.get("Website", "")
+        email = extract_email_from_website(website)
+
+        if email:  # This line ensures only businesses with emails get added
+            item = {
+                "Name": place["Name"],
+                "Address": place["Address"],
+                "Website": website,
+                "Email": email,
+                "PageContent": extract_website_content(website) if website else "",
+            }
+            enriched_data.append(item)
 
     send_to_sqs(enriched_data, queue_url)
 
