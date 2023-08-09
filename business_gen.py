@@ -237,3 +237,7 @@ def main():
 
     # Now fetch the enriched data and save to the second queue
     save_to_enriched_queue(data, SECOND_QUEUE_URL)
+
+
+if __name__ == "__main__":
+    main()
