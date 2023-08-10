@@ -1,10 +1,3 @@
-# generates leads from scrubbing the internet
-# NOTe from gogole mapls platform you can enable maps datasets API to import data as csv or json
-# get around 120 limit *viewable* places on GMaps scraper https://www.youtube.com/watch?v=op9MabaZNZo
-# 1 query per second (QPS) API limit with GPlaces
-# Change delta for more results? Change NUM_DIVISIONS for more results?
-# LOCAL business generator without AWS SQS
-
 import requests
 from dotenv import load_dotenv
 import json
@@ -13,12 +6,13 @@ import os
 import re
 import urllib.parse
 import boto3
-from pydantic import BaseModel
+import csv
 
 
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 QUEUE_URL = os.getenv("QUEUE_URL")
+SECOND_QUEUE_URL = os.getenv("SECOND_QUEUE_URL")
 ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
 GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
@@ -26,13 +20,6 @@ GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
 
 requests.packages.urllib3.disable_warnings()
-
-
-class BusinessData(BaseModel):
-    business_name: str
-    url: str = ""  # Default empty string
-    email: str = ""
-    web_content: str = ""
 
 
 def geocode_location(location):
@@ -120,6 +107,9 @@ def get_place_details(place_id):
     return response.json().get("result", {})
 
 
+import json  # Add this import to the top of your code
+
+
 def save_to_initial_queue(data, queue_url):
     initial_data = []
 
@@ -131,7 +121,46 @@ def save_to_initial_queue(data, queue_url):
         }
         initial_data.append(item)
 
+    # Save to SQS
     send_to_sqs(initial_data, queue_url)
+
+    # Save to CSV
+    save_to_csv(
+        initial_data
+    )  # This is the line that will save the initial_data to a CSV
+
+
+import csv
+
+
+def save_to_csv(data):
+    with open("output.csv", "w", newline="") as csvfile:
+        fieldnames = ["Name", "Address", "Website"]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        writer.writeheader()
+        for row in data:
+            writer.writerow(row)
+
+
+def save_to_enriched_queue(data, queue_url):
+    enriched_data = []
+
+    for place in data:
+        website = place.get("Website", "")
+        email = extract_email_from_website(website)
+
+        if email:  # This line ensures only businesses with emails get added
+            item = {
+                "Name": place["Name"],
+                "Address": place["Address"],
+                "Website": website,
+                "Email": email,
+                "PageContent": extract_website_content(website) if website else "",
+            }
+            enriched_data.append(item)
+
+    send_to_sqs(enriched_data, queue_url)
 
 
 def extract_website_content(url):
@@ -211,25 +240,6 @@ def send_to_sqs(data, queue_url):
             print(f"Error sending message to SQS: {e}")
 
 
-def save_to_sqs(data, queue_url):
-    sqs = boto3.client("sqs", region_name="us-east-2")  # might be east-1
-    for item in data:
-        business_data = BusinessData(
-            business_name=item["Name"],
-            url=item.get("Website", ""),
-            email=extract_email_from_website(item.get("Website", "")),
-            web_content=extract_website_content(item.get("Website", "")),
-        )
-
-        try:
-            response = sqs.send_message(
-                QueueUrl=queue_url, MessageBody=json.dumps(business_data.dict())
-            )
-            print(f"Message sent with ID: {response['MessageId']}")
-        except Exception as e:
-            print(f"Error sending message to SQS: {e}")
-
-
 def main():
     query = input("Enter the type of business: ")
     location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
@@ -242,6 +252,9 @@ def main():
 
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
     save_to_initial_queue(data, QUEUE_URL)
+
+    # Now fetch the enriched data and save to the second queue
+    save_to_enriched_queue(data, SECOND_QUEUE_URL)
 
 
 if __name__ == "__main__":
