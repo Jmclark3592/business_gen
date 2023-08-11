@@ -156,6 +156,12 @@ def fetch_website_content(url, headers=None):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
         }
+
+    # Check if the URL is not empty or just a protocol
+    if not url or url.startswith(("http://", "https://")):
+        print(f"Invalid or empty URL: {url}")
+        return None
+
     if not url.startswith("http"):
         url = "http://" + url
 
