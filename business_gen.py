@@ -8,12 +8,12 @@ import os
 import re
 import urllib.parse
 import boto3
+from pydantic import BaseModel
 
 
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 QUEUE_URL = os.getenv("QUEUE_URL")
-SECOND_QUEUE_URL = os.getenv("SECOND_QUEUE_URL")
 ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
 GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
@@ -21,6 +21,13 @@ GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
 
 requests.packages.urllib3.disable_warnings()
+
+
+class BusinessData(BaseModel):
+    business_name: str
+    url: str
+    email: str = ""
+    web_content: str = ""  # Default empty string
 
 
 def geocode_location(location):
@@ -125,26 +132,6 @@ def save_to_initial_queue(data, queue_url):
     send_to_sqs(initial_data, queue_url)
 
 
-def save_to_enriched_queue(data, queue_url):
-    enriched_data = []
-
-    for place in data:
-        website = place.get("Website", "")
-        email = extract_email_from_website(website)
-
-        if email:  # This line ensures only businesses with emails get added
-            item = {
-                "Name": place["Name"],
-                "Address": place["Address"],
-                "Website": website,
-                "Email": email,
-                "PageContent": extract_website_content(website) if website else "",
-            }
-            enriched_data.append(item)
-
-    send_to_sqs(enriched_data, queue_url)
-
-
 def extract_website_content(url):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -213,9 +200,16 @@ def extract_email_from_website(url, depth=1):
 def send_to_sqs(data, queue_url):
     sqs = boto3.client("sqs", region_name="us-east-2")  # might be east-1
     for item in data:
+        business_data = BusinessData(
+            business_name=item["Name"],
+            url=item.get("Website", ""),
+            email=extract_email_from_website(item.get("Website", "")),
+            web_content=extract_website_content(item.get("Website", "")),
+        )
+
         try:
             response = sqs.send_message(
-                QueueUrl=queue_url, MessageBody=json.dumps(item)
+                QueueUrl=queue_url, MessageBody=json.dumps(business_data.dict())
             )
             print(f"Message sent with ID: {response['MessageId']}")
         except Exception as e:
@@ -234,9 +228,6 @@ def main():
 
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
     save_to_initial_queue(data, QUEUE_URL)
-
-    # Now fetch the enriched data and save to the second queue
-    save_to_enriched_queue(data, SECOND_QUEUE_URL)
 
 
 if __name__ == "__main__":
