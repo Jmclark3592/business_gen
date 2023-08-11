@@ -192,7 +192,7 @@ def extract_email_from_website(url, depth=1):
 
 
 def send_to_sqs(data, queue_url):
-    sqs = boto3.client("sqs", region_name="us-east-2")  # might be east-1
+    sqs = boto3.client("sqs", region_name="us-east-2")
     for item in data:
         try:
             response = sqs.send_message(
@@ -207,9 +207,10 @@ def save_to_sqs(data, queue_url):
     sqs = boto3.client("sqs", region_name="us-east-2")
     for item in data:
         business_data = BusinessData(
-            business_name=item["Name"],
+            business_name=item.get("Name", "Default Name"),
             url=item.get("Website", ""),
-            email=extract_email_from_website(item.get("Website", "")),
+            email=extract_email_from_website(item.get("Website", ""))
+            or "",  # Use empty string if None is returned
             web_content=extract_website_content(item.get("Website", "")),
         )
 
@@ -236,3 +237,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# LINE 213 RETURNS EMPTY IF None...... If there is no email there is no point. It did get rid of tradeback errors though.
+# TO FIX: save_to_sqs is still not augmenting the SQS with email and URL. Confirmed Extract_email DOES work but its not appending..
+# TO IMPROVE:
