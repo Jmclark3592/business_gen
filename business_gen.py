@@ -120,20 +120,6 @@ def get_place_details(place_id):
     return response.json().get("result", {})
 
 
-def save_to_initial_queue(data, queue_url):
-    initial_data = []
-
-    for place in data:
-        item = {
-            "Name": place["name"],
-            "Address": place["formatted_address"],
-            "Website": place.get("website", ""),
-        }
-        initial_data.append(item)
-
-    send_to_sqs(initial_data, queue_url)
-
-
 def extract_website_content(url):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -143,9 +129,20 @@ def extract_website_content(url):
         return ""
 
     try:
-        response = requests.get(url, headers=headers, verify=False)
+        response = requests.get(url, headers=headers, verify=False, timeout=10)
         response.raise_for_status()
-        return response.text
+
+        soup = BeautifulSoup(response.content, "html.parser")
+
+        for script in soup(["script", "style"]):
+            script.extract()
+
+        text = soup.get_text()
+        lines = (line.strip() for line in text.splitlines())
+        clean_lines = list(line for line in lines if line)
+
+        return "\n".join(clean_lines)
+
     except Exception as e:
         print(f"Error extracting content from {url}: {e}")
         return ""
@@ -212,7 +209,7 @@ def send_to_sqs(data, queue_url):
 
 
 def save_to_sqs(data, queue_url):
-    sqs = boto3.client("sqs", region_name="us-east-2")  # might be east-1
+    sqs = boto3.client("sqs", region_name="us-east-2")
     for item in data:
         business_data = BusinessData(
             business_name=item["Name"],
@@ -241,7 +238,7 @@ def main():
     min_lng, max_lng = lng - delta, lng + delta
 
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
-    save_to_initial_queue(data, QUEUE_URL)
+    save_to_sqs(data, QUEUE_URL)
 
 
 if __name__ == "__main__":
