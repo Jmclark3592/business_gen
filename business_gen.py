@@ -169,7 +169,6 @@ def fetch_website_content(url, headers=None):
 
 
 def save_to_sqs(data, queue_url):
-    sqs = boto3.client("sqs", region_name="us-east-2")  # might be east-1
     for item in data:
         website = item.get("Website", "")
         soup = fetch_website_content(website)
@@ -197,6 +196,9 @@ def save_to_sqs(data, queue_url):
                 print(f"Message sent with ID: {response['MessageId']}")
             except Exception as e:
                 print(f"Error sending message to SQS: {e}")
+                import traceback
+
+                traceback.print_exc()
 
 
 def main():
