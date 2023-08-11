@@ -17,6 +17,7 @@ from pydantic import BaseModel
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 QUEUE_URL = os.getenv("QUEUE_URL")
+SQS_REGION = os.getenv("SQS_REGION", "us-east-2")
 ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
 GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
@@ -24,7 +25,7 @@ GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
 
 requests.packages.urllib3.disable_warnings()
-sqs = boto3.client("sqs")
+sqs = boto3.client("sqs", region_name=SQS_REGION)
 
 
 class BusinessData(BaseModel):
