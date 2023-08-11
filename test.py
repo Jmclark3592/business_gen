@@ -8,7 +8,6 @@ import urllib.parse
 import boto3
 from pydantic import BaseModel
 
-
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 QUEUE_URL = os.getenv("QUEUE_URL")
@@ -143,7 +142,7 @@ def extract_website_content(url):
 
 def extract_email_from_website(url, depth=1):
     if not url:
-        return None
+        return ""
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -186,7 +185,7 @@ def extract_email_from_website(url, depth=1):
 
     except Exception as e:  # This will catch all exceptions
         print(f"Error extracting email from {url}: {e}")
-        return None
+        return ""
 
 
 def send_to_sqs(data, queue_url):
@@ -205,10 +204,10 @@ def save_to_sqs(data, queue_url):
     sqs = boto3.client("sqs", region_name="us-east-2")  # might be east-1
     for item in data:
         business_data = BusinessData(
-            business_name=item["name", ""],
-            url=item.get("Website", ""),
-            email=extract_email_from_website(item.get("Website", "")),
-            web_content=extract_website_content(item.get("Website", "")),
+            business_name=item.get("name", ""),
+            url=item.get("website", ""),
+            email=extract_email_from_website(item.get("website", "")),
+            web_content=extract_website_content(item.get("website", "")),
         )
 
         try:
