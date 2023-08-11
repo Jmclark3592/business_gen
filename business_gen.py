@@ -24,6 +24,7 @@ GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
 
 requests.packages.urllib3.disable_warnings()
+sqs = boto3.client("sqs")
 
 
 class BusinessData(BaseModel):
@@ -158,7 +159,7 @@ def fetch_website_content(url, headers=None):
         }
 
     # Check if the URL is not empty or just a protocol
-    if not url or url.startswith(("http://", "https://")):
+    if not url or not url.startswith(("http://", "https://")):
         print(f"Invalid or empty URL: {url}")
         return None
 
