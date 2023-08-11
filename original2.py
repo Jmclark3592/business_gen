@@ -1,3 +1,14 @@
+"""OK i have a better idea. Let's get rid of the second queue and instead write 
+a pydantic model that has 4 fields (business name, url, email and web content).
+ The business name and url will come from my call to Google API and then bueatiful 
+ soup will output the email and webpage contents. The purpose is to collect the business name 
+ and url from Google Maps API, use that url to extract email and web page contents and then the 
+ next phase (dont worry about this yet) we will use the web page contents to write an email that 
+ is personalized based on what the web page does. So I need all four of those components to be passed 
+ thru the SQS. Can you modify this code to accomplish that? You can get rid of all things related to the 
+ SECOND_QUEUE and enriched data stuff because I think with the class 
+you create we just need the first queue."""
+
 import requests
 from dotenv import load_dotenv
 import json
@@ -6,11 +17,13 @@ import os
 import re
 import urllib.parse
 import boto3
-from pydantic import BaseModel
+import csv
+
 
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 QUEUE_URL = os.getenv("QUEUE_URL")
+SECOND_QUEUE_URL = os.getenv("SECOND_QUEUE_URL")
 ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
 GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
@@ -18,13 +31,6 @@ GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
 
 requests.packages.urllib3.disable_warnings()
-
-
-class BusinessData(BaseModel):
-    business_name: str
-    url: str = ""  # Default empty string
-    email: str = ""
-    web_content: str = ""
 
 
 def geocode_location(location):
@@ -112,6 +118,43 @@ def get_place_details(place_id):
     return response.json().get("result", {})
 
 
+import json  # Add this import to the top of your code
+
+
+def save_to_initial_queue(data, queue_url):
+    initial_data = []
+
+    for place in data:
+        item = {
+            "Name": place["name"],
+            "Address": place["formatted_address"],
+            "Website": place.get("website", ""),
+        }
+        initial_data.append(item)
+
+    send_to_sqs(initial_data, queue_url)
+
+
+def save_to_enriched_queue(data, queue_url):
+    enriched_data = []
+
+    for place in data:
+        website = place.get("Website", "")
+        email = extract_email_from_website(website)
+
+        if email:  # This line ensures only businesses with emails get added
+            item = {
+                "Name": place["Name"],
+                "Address": place["Address"],
+                "Website": website,
+                "Email": email,
+                "PageContent": extract_website_content(website) if website else "",
+            }
+            enriched_data.append(item)
+
+    send_to_sqs(enriched_data, queue_url)
+
+
 def extract_website_content(url):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -121,20 +164,9 @@ def extract_website_content(url):
         return ""
 
     try:
-        response = requests.get(url, headers=headers, verify=False, timeout=10)
+        response = requests.get(url, headers=headers, verify=False)
         response.raise_for_status()
-
-        soup = BeautifulSoup(response.content, "html.parser")
-
-        for script in soup(["script", "style"]):
-            script.extract()
-
-        text = soup.get_text()
-        lines = (line.strip() for line in text.splitlines())
-        clean_lines = list(line for line in lines if line)
-
-        return "\n".join(clean_lines)
-
+        return response.text
     except Exception as e:
         print(f"Error extracting content from {url}: {e}")
         return ""
@@ -142,7 +174,7 @@ def extract_website_content(url):
 
 def extract_email_from_website(url, depth=1):
     if not url:
-        return ""
+        return None
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -185,22 +217,15 @@ def extract_email_from_website(url, depth=1):
 
     except Exception as e:  # This will catch all exceptions
         print(f"Error extracting email from {url}: {e}")
-        return ""
+        return None
 
 
-def save_to_sqs(data, queue_url):
-    sqs = boto3.client("sqs", region_name="us-east-2")
+def send_to_sqs(data, queue_url):
+    sqs = boto3.client("sqs", region_name="us-east-2")  # might be east-1
     for item in data:
-        business_data = BusinessData(
-            business_name=item.get("name", ""),
-            url=item.get("website", ""),
-            email=extract_email_from_website(item.get("website", "")),
-            web_content=extract_website_content(item.get("website", "")),
-        )
-
         try:
             response = sqs.send_message(
-                QueueUrl=queue_url, MessageBody=json.dumps(business_data.dict())
+                QueueUrl=queue_url, MessageBody=json.dumps(item)
             )
             print(f"Message sent with ID: {response['MessageId']}")
         except Exception as e:
@@ -218,7 +243,10 @@ def main():
     min_lng, max_lng = lng - delta, lng + delta
 
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
-    save_to_sqs(data, QUEUE_URL)
+    save_to_initial_queue(data, QUEUE_URL)
+
+    # Now fetch the enriched data and save to the second queue
+    save_to_enriched_queue(data, SECOND_QUEUE_URL)
 
 
 if __name__ == "__main__":
