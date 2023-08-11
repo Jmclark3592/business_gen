@@ -205,7 +205,7 @@ def save_to_sqs(data, queue_url):
     sqs = boto3.client("sqs", region_name="us-east-2")  # might be east-1
     for item in data:
         business_data = BusinessData(
-            business_name=item["Name"],
+            business_name=item["name", ""],
             url=item.get("Website", ""),
             email=extract_email_from_website(item.get("Website", "")),
             web_content=extract_website_content(item.get("Website", "")),

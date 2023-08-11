@@ -1,8 +1,3 @@
-# generates leads from scrubbing the internet
-# 1 query per second (QPS) API limit with GPlaces
-# Change delta for more results? Change NUM_DIVISIONS for more results?
-# LOCAL business generator without AWS SQS
-
 import requests
 from dotenv import load_dotenv
 import json
@@ -17,11 +12,9 @@ from pydantic import BaseModel
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 QUEUE_URL = os.getenv("QUEUE_URL")
-SQS_REGION = os.getenv("SQS_REGION", "us-east-2")
 ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
 GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
-
 NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
 
 requests.packages.urllib3.disable_warnings()
@@ -119,94 +112,105 @@ def get_place_details(place_id):
     return response.json().get("result", {})
 
 
-def extract_email_from_soup(soup, depth=1, base_url=None):
-    if not soup:
-        return None
-
-    # First, try the earlier method to find mailto links
-    mailtos = soup.select("a[href^=mailto]")
-    for i in mailtos:
-        return i["href"].replace("mailto:", "")
-
-    # If that doesn't find an email, try searching the text using regex
-    email_pattern = r"[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}"
-    match = re.search(email_pattern, soup.get_text())
-    if match:
-        return match.group(0)
-
-    # If depth allows and we haven't found an email, follow potential "contact" links
-    if depth > 0:
-        contact_links = soup.select(
-            'a[href*="contact"], a[href*="email"], a[href*="Contact"], a[href*="Email"]'
-        )
-        for link in contact_links:
-            href = link.get("href")
-            if href:
-                if not href.startswith(("http://", "https://")) and base_url:
-                    href = urllib.parse.urljoin(base_url, href)
-                nested_soup = fetch_website_content(href)
-                email = extract_email_from_soup(nested_soup, depth - 1, base_url=href)
-                if email:
-                    return email
-
-    return None
+import json  # Add this import to the top of your code
 
 
-def fetch_website_content(url, headers=None):
-    if not headers:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+def save_to_initial_queue(data, queue_url):
+    initial_data = []
+
+    for place in data:
+        item = {
+            "Name": place["name"],
+            "Address": place["formatted_address"],
+            "Website": place.get("website", ""),
         }
+        initial_data.append(item)
 
-    # Check if the URL is not empty or just a protocol
-    if not url or not url.startswith(("http://", "https://")):
-        print(f"Invalid or empty URL: {url}")
+    send_to_sqs(initial_data, queue_url)
+
+
+def extract_website_content(url):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    }
+
+    if not url or not url.startswith("http"):
+        return ""
+
+    try:
+        response = requests.get(url, headers=headers, verify=False)
+        response.raise_for_status()
+        return response.text
+    except Exception as e:
+        print(f"Error extracting content from {url}: {e}")
+        return ""
+
+
+def extract_email_from_website(url, depth=1):
+    if not url:
         return None
 
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    }
+
+    # If the URL doesn't start with 'http' (could be http or https), then prepend it with 'http://'
     if not url.startswith("http"):
         url = "http://" + url
 
     try:
         response = requests.get(url, headers=headers, verify=False)
         response.raise_for_status()
-        return BeautifulSoup(response.text, "html.parser")
-    except Exception as e:
-        print(f"Error fetching content from {url}: {e}")
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # First, try the earlier method to find mailto links
+        mailtos = soup.select("a[href^=mailto]")
+        for i in mailtos:
+            return i["href"].replace("mailto:", "")
+
+        # If that doesn't find an email, try searching the text using regex
+        email_pattern = r"[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}"
+        match = re.search(email_pattern, soup.get_text())
+        if match:
+            return match.group(0)
+
+        # If depth allows and we haven't found an email, follow potential "contact" links
+        if depth > 0:
+            contact_links = soup.select(
+                'a[href*="contact"], a[href*="email"], a[href*="Contact"], a[href*="Email"]'
+            )
+            for link in contact_links:
+                href = link.get("href")
+                if href:
+                    # Build a full URL if it's a relative link
+                    if not href.startswith(("http://", "https://")):
+                        href = urllib.parse.urljoin(url, href)
+                    email = extract_email_from_website(href, depth - 1)
+                    if email:
+                        return email
+
+    except Exception as e:  # This will catch all exceptions
+        print(f"Error extracting email from {url}: {e}")
         return None
 
 
-def save_to_sqs(data, queue_url):
-    sqs = boto3.client("sqs", region_name=SQS_REGION)
+def send_to_sqs(data, queue_url):
+    sqs = boto3.client("sqs", region_name="us-east-2")  # might be east-1
     for item in data:
-        website = item.get("Website", "")
-        soup = fetch_website_content(website)
-        email = extract_email_from_soup(soup)
-        web_content = (
-            None
-            if not soup
-            else "\n".join(
-                line.strip() for line in soup.get_text().splitlines() if line.strip()
-            )
+        business_data = BusinessData(
+            business_name=item["Name"],
+            url=item.get("Website", ""),
+            email=extract_email_from_website(item.get("Website", "")),
+            web_content=extract_website_content(item.get("Website", "")),
         )
 
-        if email and web_content:  # Check if both email and web_content are present
-            business_data = BusinessData(
-                business_name=item["Name"],
-                url=website,
-                email=email,
-                web_content=web_content,
+        try:
+            response = sqs.send_message(
+                QueueUrl=queue_url, MessageBody=json.dumps(business_data.dict())
             )
-
-            try:
-                response = sqs.send_message(
-                    QueueUrl=queue_url, MessageBody=json.dumps(business_data.dict())
-                )
-                print(f"Message sent with ID: {response['MessageId']}")
-            except Exception as e:
-                print(f"Error sending message to SQS: {e}")
-                import traceback
-
-                traceback.print_exc()
+            print(f"Message sent with ID: {response['MessageId']}")
+        except Exception as e:
+            print(f"Error sending message to SQS: {e}")
 
 
 def main():
@@ -220,7 +224,7 @@ def main():
     min_lng, max_lng = lng - delta, lng + delta
 
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
-    save_to_sqs(data, QUEUE_URL)
+    save_to_initial_queue(data, QUEUE_URL)
 
 
 if __name__ == "__main__":
