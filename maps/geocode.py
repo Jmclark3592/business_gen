@@ -70,6 +70,7 @@ def get_place_details(place_id):
 
 
 def get_places(query, min_lat, max_lat, min_lng, max_lng):
+    """Takes query and lat, long and returns unique set of places"""
     grids = subdivide_region(min_lat, max_lat, min_lng, max_lng, NUM_DIVISIONS)
     all_results = []
     for grid in grids:
@@ -87,3 +88,19 @@ def get_places(query, min_lat, max_lat, min_lng, max_lng):
         details = get_place_details(place["place_id"])
         unique_results[idx].update(details)
     return unique_results
+
+
+def call_google():
+    # TODO: write description
+    print("call_google")
+    query = input("Enter the type of business: ")
+    location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
+    lat, lng = geocode_location(location_name)
+    delta = 0.05  # Adjust this value as needed for city size
+    min_lat, max_lat = lat - delta, lat + delta
+    min_lng, max_lng = lng - delta, lng + delta
+    data = get_places(query, min_lat, max_lat, min_lng, max_lng)
+    print("got data!")
+    print(data)
+
+    return data
