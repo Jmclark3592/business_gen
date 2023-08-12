@@ -1,11 +1,11 @@
 import requests
 import re
-from model.business import business
+import urllib.parse
 
 from bs4 import BeautifulSoup
 
 
-def scrape(business: Business) -> Business:
+def scrape(business):
     print("calling scrape")
     lines = extract_website_content(business.website)
     print(lines)

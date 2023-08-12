@@ -2,8 +2,6 @@ import requests
 from dotenv import load_dotenv
 import json
 import os
-import re
-import urllib.parse
 import boto3
 import csv
 
@@ -12,16 +10,12 @@ from model.business import create_businesses
 from scraper.bs import scrape
 
 
-load_dotenv()
-print("loaded dotenv")
-print(os.getenv("GOOGLE_API_KEY"))
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 QUEUE_URL = os.getenv("QUEUE_URL")
 # ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
 # DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
 # NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
 requests.packages.urllib3.disable_warnings()
-
 
 
 def save_to_initial_queue(data, queue_url):
@@ -177,6 +171,7 @@ def save_to_sqs(data, queue_url):
 
 
 def main():
+    load_dotenv()
     # query = input("Enter the type of business: ")
     # location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
     # lat, lng = geocode.geocode_location(location_name)
