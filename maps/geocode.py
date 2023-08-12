@@ -92,7 +92,6 @@ def get_places(query, min_lat, max_lat, min_lng, max_lng):
 
 def call_google():
     # TODO: write description
-    print("call_google")
     query = input("Enter the type of business: ")
     location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
     lat, lng = geocode_location(location_name)
@@ -100,6 +99,5 @@ def call_google():
     min_lat, max_lat = lat - delta, lat + delta
     min_lng, max_lng = lng - delta, lng + delta
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
-    print("got data!")
 
     return data

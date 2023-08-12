@@ -4,11 +4,16 @@ import urllib.parse
 
 from bs4 import BeautifulSoup
 
+from model.business import Business
 
-def scrape(business):
-    print("calling scrape")
+
+def scrape(business: Business) -> Business:
+    # TODO: why are we doing two scrapes on the same website
     lines = extract_website_content(business.website)
-    print(lines)
+    business.web_content = lines
+
+    email = extract_email_from_website(business.website)
+    business.email = email
 
     return business
 
