@@ -101,6 +101,5 @@ def call_google():
     min_lng, max_lng = lng - delta, lng + delta
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
     print("got data!")
-    print(data)
 
     return data

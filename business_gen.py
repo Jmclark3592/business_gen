@@ -7,10 +7,10 @@ import re
 import urllib.parse
 import boto3
 import csv
-from pydantic import BaseModel
 from bs4 import BeautifulSoup
 
 from maps import geocode
+from model import business
 
 
 load_dotenv()
@@ -24,11 +24,11 @@ QUEUE_URL = os.getenv("QUEUE_URL")
 requests.packages.urllib3.disable_warnings()
 
 
-class BusinessData(BaseModel):
-    business_name: str
-    url: str = ""  # Default empty string
-    email: str = ""
-    web_content: str = ""
+# class BusinessData(BaseModel):
+#     business_name: str
+#     url: str = ""  # Default empty string
+#     email: str = ""
+#     web_content: str = ""
 
 # TODO: add type hints
 
@@ -194,6 +194,7 @@ def main():
     # min_lng, max_lng = lng - delta, lng + delta
     # data = geocode.get_places(query, min_lat, max_lat, min_lng, max_lng)
     data = geocode.call_google()
+    businesses = business.create_businesses(data)
     # save_to_initial_queue(data, QUEUE_URL)
     # save_to_sqs(data, QUEUE_URL)
     # # added csv to prove we are getting emails
