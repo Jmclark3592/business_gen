@@ -191,6 +191,7 @@ def extract_email_from_website(url, depth=1):
         return None
 
 
+"""
 # adding csv to prove we are obtaining them
 def save_to_csv(data, filename):
     with open(filename, mode="w", newline="") as file:
@@ -221,6 +222,7 @@ def append_emails_to_csv(filename, emails):
         for row, email in zip(rows[1:], emails):
             row.append(email)
             writer.writerow(row)
+"""
 
 
 def send_to_sqs(data, queue_url):
@@ -265,11 +267,14 @@ def main():
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
     save_to_initial_queue(data, QUEUE_URL)
     save_to_sqs(data, QUEUE_URL)
+
+
+"""    
     # added csv to prove we are getting emails
     save_to_csv(data, "output.csv")
     websites = [place.get("website", "") for place in data]
     emails = [extract_email_from_website(url) for url in websites]
-    append_emails_to_csv("output.csv", emails)
+    append_emails_to_csv("output.csv", emails)"""
 
 
 if __name__ == "__main__":
