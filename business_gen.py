@@ -13,49 +13,18 @@ QUEUE_URL = os.getenv("QUEUE_URL")
 requests.packages.urllib3.disable_warnings()
 
 
-def save_to_initial_queue(data, queue_url):
-    initial_data = []
+def send_to_sqs(queue_url: str, business: Business):
+    # Initialize the SQS client
+    sqs = boto3.client("sqs")
+    # Convert the Business object to JSON
+    message_body = i.json()
 
-    for place in data:
-        item = {
-            "Name": place["name"],
-            "Address": place["formatted_address"],
-            "Website": place.get("website", ""),
-        }
-        initial_data.append(item)
-    send_to_sqs(initial_data, queue_url)
-
-
-def send_to_sqs(data, queue_url):
-    sqs = boto3.client("sqs", region_name="us-east-2")
-    for item in data:
-        try:
-            response = sqs.send_message(
-                QueueUrl=queue_url, MessageBody=json.dumps(item)
-            )
-            print(f"Message sent with ID: {response['MessageId']}")
-        except Exception as e:
-            print(f"Error sending message to SQS: {e}")
-
-
-def save_to_sqs(data, queue_url):
-    sqs = boto3.client("sqs", region_name="us-east-2")
-    for item in data:
-        business_data = BusinessData(
-            business_name=item.get("Name", "Default Name"),
-            url=item.get("Website", ""),
-            email=extract_email_from_website(item.get("Website", ""))
-            or "",  # Use empty string if None is returned
-            web_content=extract_website_content(item.get("Website", "")),
-        )
-
-        try:
-            response = sqs.send_message(
-                QueueUrl=queue_url, MessageBody=json.dumps(business_data.dict())
-            )
-            print(f"Message sent with ID: {response['MessageId']}")
-        except Exception as e:
-            print(f"Error sending message to SQS: {e}")
+    # Send the message to SQS
+    try:
+        response = sqs.send_message(QueueUrl=queue_url, MessageBody=message_body)
+        print("Message ID:", response["MessageId"])
+    except boto3.exceptions.botocore.exceptions.ClientError as e:
+        print("Error sending message to SQS:", e)
 
 
 def main():
