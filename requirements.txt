@@ -1,5 +1,6 @@
 flake8
 black
+pytest
 googlemaps
 boto3
 requests
