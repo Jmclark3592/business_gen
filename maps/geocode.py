@@ -1,11 +1,14 @@
 import requests
 import os
 
+from model.target import create_target
+
 GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
 TEXTSEARCH_ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
+ENVIRONMENT = os.getenv("ENVIRONMENT")
 
 
 def geocode_location(location):
@@ -92,12 +95,13 @@ def get_places(query, min_lat, max_lat, min_lng, max_lng):
 
 def call_google():
     # TODO: write description
-    query = input("Enter the type of business: ")
-    location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
-    lat, lng = geocode_location(location_name)
+    # query = input("Enter the type of business: ")
+    # location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
+    target = create_target(ENVIRONMENT)
+    lat, lng = geocode_location(target.location)
     delta = 0.05  # Adjust this value as needed for city size
     min_lat, max_lat = lat - delta, lat + delta
     min_lng, max_lng = lng - delta, lng + delta
-    data = get_places(query, min_lat, max_lat, min_lng, max_lng)
+    data = get_places(target.query, min_lat, max_lat, min_lng, max_lng)
 
     return data

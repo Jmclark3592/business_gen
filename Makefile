@@ -8,7 +8,7 @@ format:
 
 .PHONY: run
 run:
-	python3 business_gen.py
+	export ENVIRONMENT=local && python3 business_gen.py
 
 .PHONY: docker-build
 docker-build:
