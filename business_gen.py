@@ -7,7 +7,7 @@ import boto3
 from maps.geocode import call_google
 from model.business import create_businesses
 from scraper.bs import scrape
-
+from model.business import Business
 
 QUEUE_URL = os.getenv("QUEUE_URL")
 requests.packages.urllib3.disable_warnings()
@@ -15,9 +15,9 @@ requests.packages.urllib3.disable_warnings()
 
 def send_to_sqs(queue_url: str, business: Business):
     # Initialize the SQS client
-    sqs = boto3.client("sqs")
+    sqs = boto3.client("sqs", region_name="us-east-2")
     # Convert the Business object to JSON
-    message_body = i.json()
+    message_body = business.model_dump_json()
 
     # Send the message to SQS
     try:
@@ -29,13 +29,13 @@ def send_to_sqs(queue_url: str, business: Business):
 
 def main():
     load_dotenv()
-
     # get data from Google Maps API
     data = call_google()
 
     # create Business objects from Maps API
     businesses = create_businesses(data)
     print(f"scraping only {businesses[0].name}")
+    print(businesses)
 
     # get email
     # TODO: this func only takes one
@@ -44,6 +44,7 @@ def main():
     print(f"first fully formed business object: {bus}")
 
     # TODO: write business object to queue
+    send_to_sqs(QUEUE_URL, bus)
 
 
 if __name__ == "__main__":

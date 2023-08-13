@@ -12,7 +12,7 @@ ENVIRONMENT = os.getenv("ENVIRONMENT")
 
 
 def geocode_location(location):
-    """geocode_location takes location [str] and calls Google Maps API to get 
+    """geocode_location takes location [str] and calls Google Maps API to get
     lat and long [int, int]
     """
     params = {"address": location, "key": GOOGLE_API_KEY}
@@ -44,8 +44,7 @@ def subdivide_region(min_lat, max_lat, min_lng, max_lng, num_divisions):
 
 
 def get_places_for_grid(query, min_lat, max_lat, min_lng, max_lng):
-    """Handles pagination
-    """
+    """Handles pagination"""
     location = f"{(min_lat+max_lat)/2},{(min_lng+max_lng)/2}"  # Use the center of the grid as location
     parameters = {
         "query": query,
@@ -98,6 +97,7 @@ def call_google():
     # query = input("Enter the type of business: ")
     # location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
     target = create_target(ENVIRONMENT)
+
     lat, lng = geocode_location(target.location)
     delta = 0.05  # Adjust this value as needed for city size
     min_lat, max_lat = lat - delta, lat + delta
