@@ -50,6 +50,12 @@ def main():
 if __name__ == "__main__":
     main()
 
-# LINE 213 RETURNS EMPTY IF None...... If there is no email there is no point. It did get rid of traceback errors though.
-# TO FIX: save_to_sqs is still not augmenting the SQS with email and URL. Confirmed Extract_email DOES work but its not appending..
-# TO IMPROVE:
+"""
+CAN-SPAM Act
+legal agreement stored for each user
+all gpt emails must have client bus name and location
+all gpt emails must have opt out option
+each email result is put in user profile database
+if opt out, database reflects DND
+if email has DND, do not add to SQS
+"""
