@@ -7,7 +7,7 @@ GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
 TEXTSEARCH_ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
+NUM_DIVISIONS = 1  # Number of subdivisions in each dimension (change as needed)
 ENVIRONMENT = os.getenv("ENVIRONMENT")
 
 
