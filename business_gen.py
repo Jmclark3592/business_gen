@@ -49,67 +49,54 @@ def geocode_location(location):
         )
 
 
-def subdivide_region(min_lat, max_lat, min_lng, max_lng, num_divisions):
-    lat_step = (max_lat - min_lat) / num_divisions
-    lng_step = (max_lng - min_lng) / num_divisions
+# new get_places
+def get_places(
+    query, min_lat, max_lat, min_lng, max_lng, depth=1, max_depth=3, threshold=1000
+):
+    """Fetch businesses in the given bounding box."""
+    location = (
+        f"{(min_lat+max_lat)/2},{(min_lng+max_lng)/2}"  # Center of the bounding box
+    )
+    radius = 2000  # Adjust based on your needs; this is an example value
 
-    grids = []
-    for i in range(num_divisions):
-        for j in range(num_divisions):
-            grid_min_lat = min_lat + i * lat_step
-            grid_max_lat = grid_min_lat + lat_step
-            grid_min_lng = min_lng + j * lng_step
-            grid_max_lng = grid_min_lng + lng_step
-            grids.append((grid_min_lat, grid_max_lat, grid_min_lng, grid_max_lng))
-
-    return grids
-
-
-def get_places_for_grid(query, min_lat, max_lat, min_lng, max_lng):
-    location = f"{(min_lat+max_lat)/2},{(min_lng+max_lng)/2}"  # Use the center of the grid as location
-    parameters = {
+    params = {
         "query": query,
         "location": location,
+        "radius": radius,
         "key": GOOGLE_API_KEY,
-        "radius": 2000,
-    }  # Adjust the radius as needed
+    }
 
-    all_results = []
-    response = requests.get(ENDPOINT, params=parameters)
-    results = response.json().get("results", [])
-    all_results.extend(results)
-    # Handle pagination
-    while "next_page_token" in response.json():
-        parameters["pagetoken"] = response.json()["next_page_token"]
-        response = requests.get(ENDPOINT, params=parameters)
-        results = response.json().get("results", [])
-        all_results.extend(results)
+    response = requests.get(ENDPOINT, params=params)
 
-    return all_results
+    # Check for a successful response
+    try:
+        response.raise_for_status()
+        data = response.json()
 
+        if "results" not in data:
+            raise ValueError(
+                f"Unexpected API response format. Response: {response.text}"
+            )
 
-def get_places(query, min_lat, max_lat, min_lng, max_lng):
-    grids = subdivide_region(min_lat, max_lat, min_lng, max_lng, NUM_DIVISIONS)
+    except requests.RequestException as e:
+        print(f"Error querying the API: {e}")
+        print(f"Response content: {response.text}")
+        return []
 
-    all_results = []
-    for grid in grids:
-        grid_results = get_places_for_grid(query, *grid)
-        all_results.extend(grid_results)
+    # Dynamic subdivision logic
+    if len(data["results"]) >= threshold and depth < max_depth:
+        mid_lat = (min_lat + max_lat) / 2
+        mid_lng = (min_lng + max_lng) / 2
 
-    # Removing potential duplicates
-    seen_place_ids = set()
-    unique_results = []
-    for place in all_results:
-        if place["place_id"] not in seen_place_ids:
-            seen_place_ids.add(place["place_id"])
-            unique_results.append(place)
+        # Quadrants
+        nw = get_places(query, mid_lat, max_lat, min_lng, mid_lng, depth + 1, max_depth)
+        ne = get_places(query, mid_lat, max_lat, mid_lng, max_lng, depth + 1, max_depth)
+        sw = get_places(query, min_lat, mid_lat, min_lng, mid_lng, depth + 1, max_depth)
+        se = get_places(query, min_lat, mid_lat, mid_lng, max_lng, depth + 1, max_depth)
 
-    # Fetch additional details for unique results
-    for idx, place in enumerate(unique_results):
-        details = get_place_details(place["place_id"])
-        unique_results[idx].update(details)
+        return nw + ne + sw + se
 
-    return unique_results
+    return data["results"]  # Return the businesses found
 
 
 def get_place_details(place_id):
@@ -213,13 +200,11 @@ def main():
     query = input("Enter the type of business: ")
     location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
 
+    # Assuming you have a geocode_location function to fetch the central latitude and longitude
     lat, lng = geocode_location(location_name)
-    delta = 0.05  # Adjust this value as needed for city size
 
-    min_lat, max_lat = lat - delta, lat + delta
-    min_lng, max_lng = lng - delta, lng + delta
-
-    data = get_places(query, min_lat, max_lat, min_lng, max_lng)
+    delta = 0.05  # Adjust this value based on the initial size of the region
+    data = get_places(query, lat - delta, lat + delta, lng - delta, lng + delta)
     save_to_sqs(data, QUEUE_URL)
 
 
