@@ -1,7 +1,10 @@
 import requests
 import os
-
+from dotenv import load_dotenv
 from model.target import create_target
+
+load_dotenv()
+# from model.target import create_target
 
 GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
