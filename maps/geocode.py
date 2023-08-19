@@ -7,12 +7,12 @@ GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
 TEXTSEARCH_ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-NUM_DIVISIONS = 5  # Number of subdivisions in each dimension (change as needed)
+NUM_DIVISIONS = 2  # Number of subdivisions in each dimension (change as needed)
 ENVIRONMENT = os.getenv("ENVIRONMENT")
 
 
 def geocode_location(location):
-    """geocode_location takes location [str] and calls Google Maps API to get 
+    """geocode_location takes location [str] and calls Google Maps API to get
     lat and long [int, int]
     """
     params = {"address": location, "key": GOOGLE_API_KEY}
@@ -44,8 +44,7 @@ def subdivide_region(min_lat, max_lat, min_lng, max_lng, num_divisions):
 
 
 def get_places_for_grid(query, min_lat, max_lat, min_lng, max_lng):
-    """Handles pagination
-    """
+    """Handles pagination"""
     location = f"{(min_lat+max_lat)/2},{(min_lng+max_lng)/2}"  # Use the center of the grid as location
     parameters = {
         "query": query,
