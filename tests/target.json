@@ -1,5 +1,8 @@
 {
     "username": "test",
-    "query": "go purple ai",
+    "query": "Crossfit Sisu",
     "location": "Minnesota"
 }
+# TODO: email address from crossfit sisu is not verified in SES.
+# If i update Lambda code with sisu email then we're sending test emails to them...
+# I would like to use Brook's business so we dont bother other businesses during tests

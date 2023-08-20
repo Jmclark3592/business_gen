@@ -45,10 +45,9 @@ def main():
 
     print(f"first fully formed business object: {bus}")
 
-    # TODO: write business object to queue
     send_to_sqs(bus, QUEUE_URL)
     # added csv to prove we are getting emails
-    save_to_csv(bus, "output.csv")
+    # save_to_csv(bus, "output.csv")
 
 
 if __name__ == "__main__":
