@@ -3,10 +3,12 @@ from dotenv import load_dotenv
 import json
 import os
 import boto3
+import csv
+
 
 from maps.geocode import call_google
 from model.business import create_businesses
-from scraper.bs import scrape
+from scraper.bs import scrape, extract_website_content, extract_email_from_website
 
 
 QUEUE_URL = os.getenv("QUEUE_URL")
@@ -58,6 +60,38 @@ def save_to_sqs(data, queue_url):
             print(f"Error sending message to SQS: {e}")
 
 
+# adding csv to prove we are obtaining them
+def save_to_csv(data, filename):
+    with open(filename, mode="w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["Name", "Phone Number", "Address", "Website"])
+        for place in data:
+            writer.writerow(
+                [
+                    place["name"],
+                    place.get("formatted_phone_number", ""),
+                    place["formatted_address"],
+                    place.get("website", ""),
+                ]
+            )
+
+
+# added to prove getting emails
+def append_emails_to_csv(filename, emails):
+    with open(filename, mode="r") as file:
+        reader = csv.reader(file)
+        rows = list(reader)
+
+    with open(filename, mode="w", newline="") as file:
+        writer = csv.writer(file)
+        header = rows[0]
+        header.append("Email")
+        writer.writerow(header)
+        for row, email in zip(rows[1:], emails):
+            row.append(email)
+            writer.writerow(row)
+
+
 def main():
     load_dotenv()
 
@@ -75,11 +109,16 @@ def main():
     print(f"first fully formed business object: {bus}")
 
     # TODO: write business object to queue
+    save_to_sqs(data, QUEUE_URL)
+    # added csv to prove we are getting emails
+    save_to_csv(data, "output.csv")
+    websites = [place.get("website", "") for place in data]
+    emails = [extract_email_from_website(url) for url in websites]
+    append_emails_to_csv("output.csv", emails)
 
 
 if __name__ == "__main__":
     main()
 
-# LINE 213 RETURNS EMPTY IF None...... If there is no email there is no point. It did get rid of traceback errors though.
-# TO FIX: save_to_sqs is still not augmenting the SQS with email and URL. Confirmed Extract_email DOES work but its not appending..
-# TO IMPROVE:
+# added functions: save to csv, append emails
+# added to main: save to sqs, sqve to csv
