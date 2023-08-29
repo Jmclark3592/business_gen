@@ -9,7 +9,7 @@ from model.business import create_businesses, Business
 from scraper.bs import scrape
 from sqs_notify.send_to_sqs import send_to_sqs
 
-QUEUE_URL = os.getenv("QUEUE_URL")
+QUEUE_URL = os.environ["QUEUE_URL"]
 requests.packages.urllib3.disable_warnings()
 
 

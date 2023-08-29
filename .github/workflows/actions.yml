@@ -43,6 +43,8 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
+        env:
+          AWS_REGION: us-east-2
       - name: Tag and Push Docker Image
         run: |
           docker tag business-gen:latest 879139496400.dkr.ecr.us-east-2.amazonaws.com/business_gen:latest
