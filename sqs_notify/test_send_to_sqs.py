@@ -1,4 +1,5 @@
 import pytest
+import json
 from unittest.mock import Mock
 from sqs_notify.send_to_sqs import send_to_sqs
 from model.business import Business
@@ -22,5 +23,5 @@ def test_send_to_sqs(mocker):
     # Verify that SQS send_message was called for each business
     # assert mock_sqs.send_message.call_count == len(business)
     mock_sqs.send_message.assert_called_with(
-        QueueUrl=queue_url, MessageBody=business.model_dump()
+        QueueUrl=queue_url, MessageBody=json.dumps(business.dict())
     )  # Last call check

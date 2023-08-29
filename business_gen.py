@@ -52,3 +52,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# does COPY . /app/ on docker ensure key/variables like QUEUE_URL are sent with the image?

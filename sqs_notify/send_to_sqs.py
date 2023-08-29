@@ -7,7 +7,7 @@ def send_to_sqs(bus: Business, queue_url: str):
     sqs = boto3.client("sqs", region_name="us-east-2")
     try:
         response = sqs.send_message(
-            QueueUrl=queue_url, MessageBody=json.dumps(bus.model_dump())
+            QueueUrl=queue_url, MessageBody=json.dumps(bus.dict())
         )
         print(f"Message sent with ID: {response['MessageId']}")
     except Exception as e:
