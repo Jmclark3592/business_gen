@@ -13,20 +13,26 @@ QUEUE_URL = os.environ["QUEUE_URL"]
 requests.packages.urllib3.disable_warnings()
 
 
-# adding csv to prove we are obtaining them
-def save_to_csv(data, filename):
-    with open(filename, mode="w", newline="") as file:
+def save_to_csv(data, filename, user_input):
+    with open(filename, mode="a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow(["Name", "Phone Number", "Address", "Website"])
+        
+        # If the file is empty, write the header
+        if file.tell() == 0:
+            writer.writerow(["Search Query State", "Search Query City", "Search Query Business Type", "Business Name", "Phone Number", "Email"])
+        
         for place in data:
             writer.writerow(
                 [
+                    user_input.get('state', ''),  # state
+                    user_input.get('city', ''),  # city
+                    user_input.get('business_type', ''),  # business type
                     place["name"],
                     place.get("formatted_phone_number", ""),
-                    place["formatted_address"],
-                    place.get("website", ""),
+                    place.get("email", "")
                 ]
             )
+
 
 
 def main():

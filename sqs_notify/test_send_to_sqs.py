@@ -12,16 +12,16 @@ def test_send_to_sqs(mocker):
     mock_sqs.send_message.return_value = mock_response
     mocker.patch(
         "boto3.client", return_value=mock_sqs
-    )  # Update `your_module_name` to the actual module name
+    )
 
     # Create test business data and send to SQS
-    business = Business(name="Test Business 1", website="https://example1.com")
+    business = Business(name="Test Business 1", website="https://example1.com", email="test@example1.com")
     queue_url = "https://sqs.us-east-2.amazonaws.com/123456789012/test_queue"
 
     send_to_sqs(business, queue_url)
 
-    # Verify that SQS send_message was called for each business
-    # assert mock_sqs.send_message.call_count == len(business)
+    # Verify that SQS send_message was called for the business
     mock_sqs.send_message.assert_called_with(
-        QueueUrl=queue_url, MessageBody=json.dumps(business.dict())
+        QueueUrl=queue_url, MessageBody=json.dumps(business.to_sqs())
     )  # Last call check
+

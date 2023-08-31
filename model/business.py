@@ -7,7 +7,13 @@ class Business(BaseModel):
     name: str
     website: str = ""
     email: str = ""
-    web_content: str = ""
+
+    def to_sqs(self):
+        return {
+            "name": self.name,
+            "email": self.email
+        }
+
 
 
 def create_businesses(data) -> List[Business]:
