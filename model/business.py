@@ -1,12 +1,15 @@
 from typing import List
 
 from pydantic import BaseModel
+from typing import List, Optional
 
 
 class Business(BaseModel):
     name: str
     website: str = ""
     email: str = ""
+    phone: Optional[str] = None
+
 
     def to_sqs(self):
         return {

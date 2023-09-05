@@ -112,15 +112,27 @@ def get_places(query, min_lat, max_lat, min_lng, max_lng):
     return unique_results
 
 
+
 def call_google():
     # TODO: write description
+    print("Starting call_google() function...")
     query = input("Enter the type of business: ")
     location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
-    #target = create_target(ENVIRONMENT)
+    
+    # Extract city and state from location_name
+    city = location_name.split(",")[0].strip()
+    state = location_name.split(",")[1].strip()
+
     lat, lng = geocode_location(location_name)
     delta = 0.05  # Adjust this value as needed for city size
     min_lat, max_lat = lat - delta, lat + delta
     min_lng, max_lng = lng - delta, lng + delta
     data = get_places(query, min_lat, max_lat, min_lng, max_lng)
 
-    return data
+    user_input_data = {
+        'business_type': query,
+        'city': city,
+        'state': state
+    }
+    print("Finishing call_google() function...")
+    return data, user_input_data
