@@ -59,4 +59,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# does COPY . /app/ on docker ensure key/variables like QUEUE_URL are sent with the image?
+#we are not calling save_to_csv anywhere, nor does Business class seem to collect all relevant data

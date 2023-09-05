@@ -1,0 +1,5 @@
+city = "New York"
+population = 8000000
+if population >= 5000000:
+    print("this is a highly populated city")
+

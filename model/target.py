@@ -10,7 +10,7 @@ class Target(BaseModel):
     query: str = ""
     location: str = ""
 
-
+#used in call_google when testing
 def create_target(environment: str) -> Target:
     if environment == "local":
         target_json = read_json("tests/target.json")
