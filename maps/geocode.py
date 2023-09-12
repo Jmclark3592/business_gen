@@ -2,10 +2,10 @@ import requests
 import os
 from dotenv import load_dotenv
 from cache.cache_data import read_cache, save_cache
-#from model.target import create_target
+
+#from model.target import create_target *used for testing
 
 load_dotenv()
-# from model.target import create_target
 
 GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
@@ -114,25 +114,42 @@ def get_places(query, min_lat, max_lat, min_lng, max_lng):
 
 
 def call_google():
-    # TODO: write description
     print("Starting call_google() function...")
-    query = input("Enter the type of business: ")
+    
+    # Collecting multiple business types from the user
+    business_types = []
+    while True:
+        query = input("Enter a type of business (or type 'exit' to proceed): ")
+        if query.lower() == 'exit':
+            break
+        business_types.append(query)
+    
     location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
+    location_name = location_name.upper()
     
     # Extract city and state from location_name
     city = location_name.split(",")[0].strip()
     state = location_name.split(",")[1].strip()
 
-    lat, lng = geocode_location(location_name)
+    #target = create_target(ENVIRONMENT) *used for testing
+    lat, lng = geocode_location(location_name) #(target.location_name) *when in ENVIRONMENT
     delta = 0.05  # Adjust this value as needed for city size
     min_lat, max_lat = lat - delta, lat + delta
     min_lng, max_lng = lng - delta, lng + delta
-    data = get_places(query, min_lat, max_lat, min_lng, max_lng)
+    
+    all_data = []
+    for business_type in business_types:
+        data = get_places(business_type, min_lat, max_lat, min_lng, max_lng)
+        all_data.extend(data)
 
     user_input_data = {
-        'business_type': query,
+        'business_types': business_types,
         'city': city,
         'state': state
     }
     print("Finishing call_google() function...")
-    return data, user_input_data
+    return all_data, user_input_data
+
+
+if __name__ == '__main__':
+    call_google()
