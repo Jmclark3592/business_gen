@@ -151,5 +151,3 @@ def call_google():
     return all_data, user_input_data
 
 
-if __name__ == '__main__':
-    call_google()
