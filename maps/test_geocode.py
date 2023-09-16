@@ -91,7 +91,7 @@ def test_get_place_details(mock_get):
         "result": {
             "name": "Place A",
             "address": "123 Main St",
-            "phone": "555-1234"
+            "formatted_phone_number": "555-1234"  # Updated to match the Google Maps API key
         }
     }
     mock_get.return_value = mock_response
@@ -102,10 +102,11 @@ def test_get_place_details(mock_get):
     expected = {
         "name": "Place A",
         "address": "123 Main St",
-        "phone": "555-1234"
+        "formatted_phone_number": "555-1234"  # Added phone number to expected result
     }
 
     assert result == expected
+
 
 @patch("maps.geocode.subdivide_region")
 @patch("maps.geocode.get_places_for_grid")
@@ -125,9 +126,9 @@ def test_get_places(mock_get_place_details, mock_get_places_for_grid, mock_subdi
         ]
     ]
     mock_get_place_details.side_effect = [
-        {"address": "123 Main St"},
-        {"address": "456 Elm St"},
-        {"address": "789 Oak St"}
+        {"address": "123 Main St", "formatted_phone_number": "555-1234"},  # Added phone number
+        {"address": "456 Elm St", "formatted_phone_number": "555-5678"},  # Added phone number
+        {"address": "789 Oak St", "formatted_phone_number": "555-9101"}   # Added phone number
     ]
 
     query = "restaurant"
@@ -136,9 +137,9 @@ def test_get_places(mock_get_place_details, mock_get_places_for_grid, mock_subdi
     result = get_places(query, min_lat, max_lat, min_lng, max_lng)
 
     expected = [
-        {"name": "Place A", "place_id": "123", "address": "123 Main St"},
-        {"name": "Place B", "place_id": "456", "address": "456 Elm St"},
-        {"name": "Place C", "place_id": "789", "address": "789 Oak St"}
+        {"name": "Place A", "place_id": "123", "address": "123 Main St", "formatted_phone_number": "555-1234"},
+        {"name": "Place B", "place_id": "456", "address": "456 Elm St", "formatted_phone_number": "555-5678"},
+        {"name": "Place C", "place_id": "789", "address": "789 Oak St", "formatted_phone_number": "555-9101"}
     ]
 
     assert result == expected

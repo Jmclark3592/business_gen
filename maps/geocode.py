@@ -1,10 +1,11 @@
 import requests
 import os
 from dotenv import load_dotenv
-from model.target import create_target
+from cache.cache_data import read_cache, save_cache
+
+#from model.target import create_target *used for testing
 
 load_dotenv()
-# from model.target import create_target
 
 GEOCODE_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json?"
 DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json?"
@@ -16,19 +17,34 @@ ENVIRONMENT = os.getenv("ENVIRONMENT")
 
 def geocode_location(location):
     """geocode_location takes location [str] and calls Google Maps API to get
-    lat and long [int, int]
+    lat and long [int, int]. Currently stores lat/lng in local file.
     """
+    # Attempt to read from cache
+    cached_data = read_cache("latlong_cache.json")
+    
+    # Check if the location is already in the cache
+    if location in cached_data:
+        return cached_data[location]["lat"], cached_data[location]["lng"]
+    
+    # If not in cache, proceed with API call
     params = {"address": location, "key": GOOGLE_API_KEY}
     response = requests.get(GEOCODE_ENDPOINT, params=params)
     data = response.json()
     if data["status"] == "OK":
         lat = data["results"][0]["geometry"]["location"]["lat"]
         lng = data["results"][0]["geometry"]["location"]["lng"]
+        
+        # Save the obtained lat/lng to cache for future use
+        cached_data[location] = {"lat": lat, "lng": lng}
+        save_cache("latlong_cache.json", cached_data)
+        
         return lat, lng
     else:
         raise ValueError(
             f"Error geocoding location {location}. Error message: {data['status']}"
         )
+
+
 
 
 def subdivide_region(min_lat, max_lat, min_lng, max_lng, num_divisions):
@@ -75,7 +91,8 @@ def get_place_details(place_id):
 
 
 def get_places(query, min_lat, max_lat, min_lng, max_lng):
-    """Takes query and lat, long and returns unique set of places"""
+    """Takes query and lat, long and returns unique set of places
+    Do not cache this as the API calls are for business info only"""
     grids = subdivide_region(min_lat, max_lat, min_lng, max_lng, NUM_DIVISIONS)
     all_results = []
     for grid in grids:
@@ -95,15 +112,42 @@ def get_places(query, min_lat, max_lat, min_lng, max_lng):
     return unique_results
 
 
+
 def call_google():
-    # TODO: write description
-    # query = input("Enter the type of business: ")
-    # location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
-    target = create_target(ENVIRONMENT)
-    lat, lng = geocode_location(target.location)
+    print("Starting call_google() function...")
+    
+    # Collecting multiple business types from the user
+    business_types = []
+    while True:
+        query = input("Enter a type of business (or type 'exit' to proceed): ")
+        if query.lower() == 'exit':
+            break
+        business_types.append(query)
+    
+    location_name = input("Enter the city and state (e.g. 'Tacoma, WA'): ")
+    location_name = location_name.upper()
+    
+    # Extract city and state from location_name
+    city = location_name.split(",")[0].strip()
+    state = location_name.split(",")[1].strip()
+
+    #target = create_target(ENVIRONMENT) *used for testing
+    lat, lng = geocode_location(location_name) #(target.location_name) *when in ENVIRONMENT
     delta = 0.05  # Adjust this value as needed for city size
     min_lat, max_lat = lat - delta, lat + delta
     min_lng, max_lng = lng - delta, lng + delta
-    data = get_places(target.query, min_lat, max_lat, min_lng, max_lng)
+    
+    all_data = []
+    for business_type in business_types:
+        data = get_places(business_type, min_lat, max_lat, min_lng, max_lng)
+        all_data.extend(data)
 
-    return data
+    user_input_data = {
+        'business_types': business_types,
+        'city': city,
+        'state': state
+    }
+    print("Finishing call_google() function...")
+    return all_data, user_input_data
+
+
